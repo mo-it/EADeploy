@@ -1,0 +1,8 @@
+target
+.git
+.gitignore
+Dockerfile
+readme.txt
+.mvn
+mvnw
+mvnw.cmd

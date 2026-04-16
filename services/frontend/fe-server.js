@@ -32,7 +32,12 @@ var endBody = '</div></body></html>';
 
 http.createServer(function (req, res) {
 	console.log(req.url)
- 
+ // Kubernetes health/liveness probe
+	if (req.url === '/health') {
+		res.writeHead(200, {'Content-Type': 'application/json'});
+		res.end(JSON.stringify({ status: 'ok' }));
+		return;
+	}
 	//This validation needed to avoid duplicated (i.e., twice!) get / calls (due to the favicon.ico)
 	if (req.url === '/favicon.ico') {
 		 res.writeHead(200, {'Content-Type': 'image/x-icon'} );
