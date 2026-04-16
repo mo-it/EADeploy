@@ -1,0 +1,30 @@
+# Node
+node_modules/
+npm-debug.log
+.env
+
+# Java / Maven
+target/
+*.class
+*.jar
+.mvn/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+.terraform.lock.hcl
+
+# IDE / OS
+.vscode/
+.vs/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Secrets — never commit these
+*.pem
+*.key
+*-credentials.json
+secrets/
