@@ -20,7 +20,7 @@ jobs:
         run: docker build -t ead-frontend:${{ github.sha }} ./services/frontend
 
       - name: Trivy scan backend image
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ead-backend:${{ github.sha }}
           format: table
