@@ -40,8 +40,8 @@ jobs:
         with:
         name: trivy-reports
         path: |
-          backend-trivy-report.txt
-          frontend-trivy-report.txt
+         backend-trivy-report.txt
+         frontend-trivy-report.txt
 
       - name: Simulated CD release commands
         run: |
