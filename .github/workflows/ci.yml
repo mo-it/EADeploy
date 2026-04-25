@@ -1,4 +1,4 @@
-name: CI Build Test Security Scan
+name: CI CD Build Test Security Scan Deploy
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-test-scan:
+  build-test-scan-deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -84,8 +84,31 @@ jobs:
           kubectl rollout status deployment/backend -n production --timeout=180s
           kubectl rollout status deployment/frontend -n production --timeout=180s
 
+      - name: Switch traffic to GREEN
+        run: |
+          kubectl patch svc backend -n production -p '{"spec":{"selector":{"app":"backend","version":"green"}}}'
+          kubectl get endpoints backend -n production
+          echo "Traffic switched to GREEN backend"
+
+      - name: Validate GREEN deployment
+        run: |
+          kubectl get pods -n production
+          kubectl get svc -n production
+          kubectl get endpoints backend -n production
+          curl -m 20 http://20.166.194.10
+
+      - name: Rollback to BLUE if validation fails
+        if: failure()
+        run: |
+          kubectl patch svc backend -n production -p '{"spec":{"selector":{"app":"backend","version":"blue"}}}'
+          kubectl get endpoints backend -n production
+          echo "Rollback completed: traffic restored to BLUE backend"
+
       - name: CD smoke test
         run: |
           kubectl get pods -n production
           kubectl get svc -n production
+          kubectl get pvc -n production
+          kubectl get hpa -n production
+          kubectl get networkpolicy -n production
           kubectl get endpoints backend -n production
