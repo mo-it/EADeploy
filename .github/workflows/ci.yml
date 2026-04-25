@@ -77,6 +77,17 @@ jobs:
           mkdir -p ~/.kube
           echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > ~/.kube/config
 
+      - name: Pre-deployment MongoDB backup
+        run: |
+          kubectl exec -n production mongodb-0 -- sh -c "mongodump --archive --gzip" > mongodb-backup-${{ github.run_number }}.gz
+          ls -lh mongodb-backup-${{ github.run_number }}.gz
+
+      - name: Upload MongoDB backup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mongodb-backup-${{ github.run_number }}
+          path: mongodb-backup-${{ github.run_number }}.gz
+
       - name: Deploy to AKS
         run: |
           kubectl set image deployment/backend backend=acreadca208c975.azurecr.io/ead-backend:${{ github.sha }} -n production
