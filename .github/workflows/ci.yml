@@ -28,7 +28,7 @@ jobs:
           exit-code: 0
 
       - name: Trivy scan frontend image
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ead-frontend:${{ github.sha }}
           format: table
