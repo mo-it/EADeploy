@@ -56,7 +56,7 @@ jobs:
           name: k6-report
           path: k6-report.txt
 
-            - name: Login to ACR
+      - name: Login to ACR
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | docker login acreadca208c975.azurecr.io \
             -u "${{ secrets.ACR_USERNAME }}" \
