@@ -46,7 +46,7 @@ jobs:
             backend-trivy-report.txt
             frontend-trivy-report.txt
 
-            - name: Run k6 load test
+      - name: Run k6 load test
         run: |
           docker run --rm -i grafana/k6 run - < tests/load-test.js > k6-report.txt
 
@@ -54,7 +54,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: k6-report
-          path: k6-report.txt      
+          path: k6-report.txt
 
       - name: Simulated CD release commands
         run: |
