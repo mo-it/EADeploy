@@ -1,4 +1,4 @@
-name: Manual MongoDB Backup
+name: MongoDB Backup
 
 on:
   workflow_dispatch:
