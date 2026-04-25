@@ -1,4 +1,4 @@
-name: CI CD Build Test Security Scan Deploy
+name: CI Build Test Security Scan
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-test-scan-deploy:
+  ci-build-test-scan:
     runs-on: ubuntu-latest
 
     steps:
@@ -55,71 +55,3 @@ jobs:
         with:
           name: k6-report
           path: k6-report.txt
-
-      - name: Login to ACR
-        run: |
-          echo "${{ secrets.ACR_PASSWORD }}" | docker login acreadca208c975.azurecr.io \
-            -u "${{ secrets.ACR_USERNAME }}" \
-            --password-stdin
-
-      - name: Tag images for ACR
-        run: |
-          docker tag ead-backend:${{ github.sha }} acreadca208c975.azurecr.io/ead-backend:${{ github.sha }}
-          docker tag ead-frontend:${{ github.sha }} acreadca208c975.azurecr.io/ead-frontend:${{ github.sha }}
-
-      - name: Push images to ACR
-        run: |
-          docker push acreadca208c975.azurecr.io/ead-backend:${{ github.sha }}
-          docker push acreadca208c975.azurecr.io/ead-frontend:${{ github.sha }}
-
-      - name: Configure kubectl
-        run: |
-          mkdir -p ~/.kube
-          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > ~/.kube/config
-
-      - name: Pre-deployment MongoDB backup
-        run: |
-          kubectl exec -n production mongodb-0 -- sh -c "mongodump --archive --gzip" > mongodb-backup-${{ github.run_number }}.gz
-          ls -lh mongodb-backup-${{ github.run_number }}.gz
-
-      - name: Upload MongoDB backup artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: mongodb-backup-${{ github.run_number }}
-          path: mongodb-backup-${{ github.run_number }}.gz
-
-      - name: Deploy to AKS
-        run: |
-          kubectl set image deployment/backend backend=acreadca208c975.azurecr.io/ead-backend:${{ github.sha }} -n production
-          kubectl set image deployment/frontend frontend=acreadca208c975.azurecr.io/ead-frontend:${{ github.sha }} -n production
-          kubectl rollout status deployment/backend -n production --timeout=180s
-          kubectl rollout status deployment/frontend -n production --timeout=180s
-
-      - name: Switch traffic to GREEN
-        run: |
-          kubectl patch svc backend -n production -p '{"spec":{"selector":{"app":"backend","version":"green"}}}'
-          kubectl get endpoints backend -n production
-          echo "Traffic switched to GREEN backend"
-
-      - name: Validate GREEN deployment
-        run: |
-          kubectl get pods -n production
-          kubectl get svc -n production
-          kubectl get endpoints backend -n production
-          curl -m 20 http://20.166.194.10
-
-      - name: Rollback to BLUE if validation fails
-        if: failure()
-        run: |
-          kubectl patch svc backend -n production -p '{"spec":{"selector":{"app":"backend","version":"blue"}}}'
-          kubectl get endpoints backend -n production
-          echo "Rollback completed: traffic restored to BLUE backend"
-
-      - name: CD smoke test
-        run: |
-          kubectl get pods -n production
-          kubectl get svc -n production
-          kubectl get pvc -n production
-          kubectl get hpa -n production
-          kubectl get networkpolicy -n production
-          kubectl get endpoints backend -n production

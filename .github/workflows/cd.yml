@@ -1,0 +1,83 @@
+name: CD Deploy to AKS
+
+on:
+  workflow_run:
+    workflows:
+      - CI Build Test Security Scan
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build backend release image
+        run: docker build -t ead-backend:${{ github.sha }} ./services/backend
+
+      - name: Build frontend release image
+        run: docker build -t ead-frontend:${{ github.sha }} ./services/frontend
+
+      - name: Login to ACR
+        run: |
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login acreadca208c975.azurecr.io \
+            -u "${{ secrets.ACR_USERNAME }}" \
+            --password-stdin
+
+      - name: Tag images for ACR
+        run: |
+          docker tag ead-backend:${{ github.sha }} acreadca208c975.azurecr.io/ead-backend:${{ github.sha }}
+          docker tag ead-frontend:${{ github.sha }} acreadca208c975.azurecr.io/ead-frontend:${{ github.sha }}
+
+      - name: Push images to ACR
+        run: |
+          docker push acreadca208c975.azurecr.io/ead-backend:${{ github.sha }}
+          docker push acreadca208c975.azurecr.io/ead-frontend:${{ github.sha }}
+
+      - name: Configure kubectl
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" | base64 -d > ~/.kube/config
+
+      - name: Deploy images to AKS
+        run: |
+          kubectl set image deployment/backend backend=acreadca208c975.azurecr.io/ead-backend:${{ github.sha }} -n production
+          kubectl set image deployment/frontend frontend=acreadca208c975.azurecr.io/ead-frontend:${{ github.sha }} -n production
+          kubectl rollout status deployment/backend -n production --timeout=180s
+          kubectl rollout status deployment/frontend -n production --timeout=180s
+
+      - name: Switch traffic to GREEN
+        run: |
+          kubectl patch svc backend -n production -p '{"spec":{"selector":{"app":"backend","version":"green"}}}'
+          kubectl get endpoints backend -n production
+
+      - name: Validate GREEN deployment
+        run: |
+          kubectl get pods -n production
+          kubectl get svc -n production
+          kubectl get endpoints backend -n production
+          curl -m 20 http://20.166.194.10
+
+      - name: Rollback to BLUE if validation fails
+        if: failure()
+        run: |
+          kubectl patch svc backend -n production -p '{"spec":{"selector":{"app":"backend","version":"blue"}}}'
+          kubectl get endpoints backend -n production
+
+      - name: CD smoke test
+        run: |
+          kubectl get pods -n production
+          kubectl get svc -n production
+          kubectl get pvc -n production
+          kubectl get hpa -n production
+          kubectl get networkpolicy -n production
+          kubectl get endpoints backend -n production
